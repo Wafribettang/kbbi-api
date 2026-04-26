@@ -6,43 +6,51 @@ async function cariKBBI(kata) {
     
     try {
         const { data } = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+            headers: { 'User-Agent': 'Mozilla/5.0' }
         });
 
         const $ = cheerio.load(data);
+        let hasilDefinisi = [];
 
-        // Ambil judul (misal: ber.sih)
-        const judul = $('h2').first().contents().filter(function() {
-            return this.type === 'text';
-        }).text().trim();
-
-        if (!judul) {
-            console.log('kata tidak ditemukan.');
-            return;
+        // 1. Coba cari yang model list dulu (untuk yang banyak arti seperti 'goblok')
+        const listDefinisi = $('ol.last-list-child li');
+        
+        if (listDefinisi.length > 0) {
+            listDefinisi.each((i, el) => {
+                $(el).find('.entrisButton').remove();
+                hasilDefinisi.push(`${i + 1}. ${$(el).text().trim()}`);
+            });
+        } else {
+            // 2. Kalau list ga ada, cari definisi tunggal (untuk yang 1 arti seperti 'juling')
+            // Biasanya ada di elemen setelah tag <hr> atau di dalam tag <ul> / <li> tanpa <ol>
+            $('ul.last-list-child li, .container.body-content li').each((i, el) => {
+                // Pastikan bukan bagian dari menu navigasi
+                if (!$(el).closest('.navbar').length) {
+                    $(el).find('.entrisButton').remove();
+                    const txt = $(el).text().trim();
+                    if (txt) hasilDefinisi.push(txt);
+                }
+            });
         }
 
-        console.log(`hasil: ${judul}`);
+        // Kalau masih kosong juga, ambil teks kasar di bawah header
+        if (hasilDefinisi.length === 0) {
+            let rawText = $('h2').nextAll('ul, ol, li').first().text().trim();
+            if (rawText) hasilDefinisi.push(rawText);
+        }
 
-        // Ambil daftar definisi
-        $('ol.last-list-child li').each((i, el) => {
-            // Hapus tombol-tombol (edit, copy, dll) biar teks bersih
-            $(el).find('.entrisButton').remove();
-            
-            const definisi = $(el).text().trim();
-            console.log(`${i + 1}. ${definisi}`);
-        });
+        console.log(`kata: ${kata}`);
+        if (hasilDefinisi.length > 0) {
+            hasilDefinisi.forEach(def => console.log(def));
+        } else {
+            console.log("definisi tidak ditemukan.");
+        }
 
     } catch (error) {
-        if (error.response && error.response.status === 404) {
-            console.log('kata tidak ditemukan (404).');
-        } else {
-            console.log('terjadi kesalahan:', error.message);
-        }
+        console.log("error atau kata tidak ada.");
     }
 }
 
-// Cara pakai
-const kataInput = "bersih"; // ganti jadi input dari bot kamu
-cariKBBI(kataInput);
+// Test dua-duanya
+cariKBBI("goblok");
+cariKBBI("juling");
