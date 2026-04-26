@@ -5,22 +5,32 @@ const app = express();
 
 app.get('/api/kbbi', async (req, res) => {
   const kata = req.query.kata;
-  if (!kata) return res.json({ error: 'masukan kata yang dicari' });
+  if (!kata) return res.json({ error: 'masukkan kata yang dicari' });
 
   try {
-    const { data } = await axios.get(`https://kbbi.kemdikbud.go.id/entri/${kata}`);
+    // URL disesuaikan ke kemendikdasmen (KBBI VI)
+    const { data } = await axios.get(`https://kbbi.kemendikdasmen.go.id/entri/${kata}`);
     const $ = cheerio.load(data);
+    
     let hasil = [];
 
-    $('ol li, ul li').each((i, el) => {
-      hasil.push($(el).text().trim());
+    // Mengambil definisi kata
+    $('ul.list-ungulled li, ol li').each((i, el) => {
+      const teks = $(el).text().trim();
+      if (teks) hasil.push(teks);
     });
 
-    if (hasil.length === 0) return res.json({ pesan: 'kata tidak ditemukan' });
+    if (hasil.length === 0) {
+      return res.json({ pesan: 'kata tidak ditemukan' });
+    }
 
-    res.json({ kata, definisi: hasil });
+    res.json({ 
+      sumber: 'KBBI VI',
+      kata: kata, 
+      definisi: hasil 
+    });
   } catch (err) {
-    res.status(500).json({ error: 'gagal mengambil data dari pusat' });
+    res.status(500).json({ error: 'gagal mengambil data' });
   }
 });
 
