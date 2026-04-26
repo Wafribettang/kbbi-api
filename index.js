@@ -10,47 +10,46 @@ async function cariKBBI(kata) {
         });
 
         const $ = cheerio.load(data);
-        let hasilDefinisi = [];
+        let hasil = [];
 
-        // 1. Coba cari yang model list dulu (untuk yang banyak arti seperti 'goblok')
-        const listDefinisi = $('ol.last-list-child li');
+        // Ambil judul kata (biar tau ejaannya, misal: ma.ta)
+        const judul = $('h2').first().contents().filter(function() {
+            return this.type === 'text';
+        }).text().trim();
+
+        // Cari di ol (untuk banyak arti) ATAU ul (untuk satu arti)
+        // Kita spesifik cari di .last-list-child atau .adjusted-par
+        const container = $('ol.last-list-child, ul.adjusted-par').first();
         
-        if (listDefinisi.length > 0) {
-            listDefinisi.each((i, el) => {
-                $(el).find('.entrisButton').remove();
-                hasilDefinisi.push(`${i + 1}. ${$(el).text().trim()}`);
-            });
-        } else {
-            // 2. Kalau list ga ada, cari definisi tunggal (untuk yang 1 arti seperti 'juling')
-            // Biasanya ada di elemen setelah tag <hr> atau di dalam tag <ul> / <li> tanpa <ol>
-            $('ul.last-list-child li, .container.body-content li').each((i, el) => {
-                // Pastikan bukan bagian dari menu navigasi
-                if (!$(el).closest('.navbar').length) {
-                    $(el).find('.entrisButton').remove();
-                    const txt = $(el).text().trim();
-                    if (txt) hasilDefinisi.push(txt);
+        container.find('li').each((i, el) => {
+            // Hapus tombol-tombol edit/copy/usulan makna baru
+            $(el).find('.entrisButton').remove();
+            
+            const teks = $(el).text().trim();
+            
+            // Cek biar tulisan "Usulkan makna baru" gak ikut masuk
+            if (teks && !teks.includes("Usulkan makna baru")) {
+                // Kalau dari <ol> kita kasih nomor, kalau <ul> (satu arti) langsung aja
+                if (container.is('ol')) {
+                    hasil.push(`${i + 1}. ${teks}`);
+                } else {
+                    hasil.push(teks);
                 }
-            });
-        }
+            }
+        });
 
-        // Kalau masih kosong juga, ambil teks kasar di bawah header
-        if (hasilDefinisi.length === 0) {
-            let rawText = $('h2').nextAll('ul, ol, li').first().text().trim();
-            if (rawText) hasilDefinisi.push(rawText);
-        }
-
-        console.log(`kata: ${kata}`);
-        if (hasilDefinisi.length > 0) {
-            hasilDefinisi.forEach(def => console.log(def));
+        console.log(`\nKata: ${judul}`);
+        if (hasil.length > 0) {
+            hasil.forEach(def => console.log(def));
         } else {
-            console.log("definisi tidak ditemukan.");
+            console.log("Definisi tidak ditemukan.");
         }
 
     } catch (error) {
-        console.log("error atau kata tidak ada.");
+        console.log("Kata tidak ditemukan atau server bermasalah.");
     }
 }
 
-// Test dua-duanya
-cariKBBI("goblok");
+// Test sesuai view-source kamu
+cariKBBI("mata");
 cariKBBI("juling");
