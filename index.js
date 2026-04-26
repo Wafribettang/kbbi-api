@@ -15,38 +15,48 @@ app.get('/api/kbbi', async (req, res) => {
     });
 
     const $ = cheerio.load(data);
-    
-    // Ambil ejaan (misal: ma.ma.li.a)
-    const ejaan = $('h2').first().contents().filter(function() {
-      return this.type === 'text';
-    }).text().trim();
+    let kumpulanHasil = [];
 
-    let hasil = [];
+    // Cari semua elemen h2 (ejaan) dan ul (definisi) yang sejajar
+    $('h2').each((i, el) => {
+      let ejaanTeks = $(el).contents().filter(function() {
+        return this.type === 'text';
+      }).text().trim();
 
-    // Target utama: ul dengan class adjusted-par sesuai source code mu
-    $('ul.adjusted-par li').each((i, el) => {
-      // Kita ambil teksnya, tapi buang bagian tombol-tombol (entrisButton)
-      $(el).find('.entrisButton').remove();
-      let teks = $(el).text().trim();
-      
-      if (teks && !teks.includes("Usulkan makna baru")) {
-        hasil.push(teks);
+      // Jika ada angka superscript (pangkat), ambil juga
+      let pangkat = $(el).find('sup').text().trim();
+      let ejaanFull = ejaanTeks + (pangkat ? ` (${pangkat})` : '');
+
+      // Cari ul.adjusted-par yang berada tepat setelah h2 ini
+      let definisiList = [];
+      $(el).nextAll('ul.adjusted-par').first().find('li').each((j, li) => {
+        $(li).find('.entrisButton').remove();
+        let teksDefinisi = $(li).text().trim();
+        if (teksDefinisi && !teksDefinisi.includes("Usulkan makna baru")) {
+          definisiList.push(teksDefinisi);
+        }
+      });
+
+      if (ejaanFull && definisiList.length > 0) {
+        kumpulanHasil.push({
+          ejaan: ejaanFull,
+          arti: definisiList
+        });
       }
     });
 
-    if (hasil.length === 0) {
-      return res.json({ pesan: 'kata tidak ditemukan atau tidak ada definisi' });
+    if (kumpulanHasil.length === 0) {
+      return res.json({ pesan: 'kata tidak ditemukan' });
     }
 
     res.json({ 
       sumber: 'KBBI VI',
       kata: kata,
-      ejaan: ejaan,
-      definisi: hasil 
+      hasil: kumpulanHasil
     });
 
   } catch (err) {
-    res.status(500).json({ error: 'gagal mengambil data, pastikan kata benar' });
+    res.status(500).json({ error: 'gagal mengambil data' });
   }
 });
 
