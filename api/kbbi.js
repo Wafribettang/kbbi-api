@@ -1,7 +1,7 @@
-import axios from "axios";
-import cheerio from "cheerio";
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Hanya izinkan GET
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
